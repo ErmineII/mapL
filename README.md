@@ -4,6 +4,9 @@
 
   Inspired by Picolisp (similar lambdas, quoting, etc.)
 
+Tested on lua5.3, PuppyLinux
+ and lua5.1, [jslinux](https://bellard.org/jslinux/vm.html?url=alpine-x86.cfg&mem=192)
+
 ```lua
 lisp=require("lisp")
 
