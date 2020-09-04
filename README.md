@@ -33,3 +33,24 @@ lspEvl[[
 
 ```
 
+---
+
+## the expression library
+
+- includes the functions ev and evq
+- '#' is the same as 'evq', which will
+   evaluate an infix expression
+- 'ev' will evaluate its arguments first
+
+```lisp
+(progn
+  (require 'exp)
+  (setq x 14 y 9)
+  (print (# x + y*2)) => 22
+  (# y = 3)
+  (print y) => 3
+  (print (# `(read) + 12)) ==
+  (print (ev (read) '+12)) )
+```
+- interfaces with lisp to set and read
+  variabels
