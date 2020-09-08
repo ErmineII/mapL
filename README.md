@@ -14,6 +14,7 @@ function lspEvl(str)
   return lisp.eval(lisp.read(str))
 end
 
+lisp.begin()
 lspEvl[[
 ```
 ```lisp
@@ -24,7 +25,7 @@ lspEvl[[
   (de myElt (lst indx)
      (if (eq indx 0)
        (car lst)
-       (myElt (cdr lst) (- inx 1)) ) )
+       (myElt (cdr lst) (- indx 1)) ) )
   (myElt (3 5 6) 2) => 6  )
 ```
 
@@ -35,12 +36,12 @@ lspEvl[[
 
 ---
 
-## the expression library
+## The `exp`ression Library
 
 - includes the functions ev and evq
-- '#' is the same as 'evq', which will
+- `#` is the same as `evq`, which will
    evaluate an infix expression
-- 'ev' will evaluate its arguments first
+- `ev` will evaluate its arguments first
 
 ```lisp
 (progn
@@ -53,4 +54,15 @@ lspEvl[[
   (print (ev (read) '+12)) )
 ```
 - interfaces with lisp to set and read
-  variabels
+  variables
+
+---
+
+## Lua interaction
+
+- use `lua` function to
+   - call a lua function:
+    `(lua funCall (_G 'string 'match) (read) (space '^%g*'(.*)))`
+- turn a lua function into a function lisp code can call:
+   - `(:=  lua-require (toLisp (_G 'require)))   (:= pkg (lua-require 'packagename))`
+
