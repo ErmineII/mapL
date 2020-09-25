@@ -105,10 +105,7 @@ function E.Apply(operator, expression)
   elseif operator == '^' then
     return op1 ^ op2
   elseif operator == '.' then
-    while op2>1 do
-      op2 = op2/10
-    end
-    return op1 + op2
+    return op1.."."..op2
   else
 error(('unknown operator: %q (%q, %q)'):format(operator, op1, op2))
     return '0'

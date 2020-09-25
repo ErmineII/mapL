@@ -1,20 +1,36 @@
-local Notice = [[
+local Banner = [[
     ______
-  //::/   \\  mapL 
- //::|  \/ \\  GNU AGPLv3
-||::::\  \  ||  (C) HFH 2020
-||::\::\    ||
- \\:/\::|  //
-  \\:::/__//
+  //  /@@@\\  mapL 
+ //  |@@\/@\\  GNU AGPLv3
+||    \@@\@@||  (C) HFH 2020
+||  \  \@@@@||
+ \\ /\  |@@//
+  \\___/@@//
 ]]
 
+local Notice = [[
+  MapL, a lisp interpreter
+  Copyright (C) 2020  HFH
 
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published
+  by the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+]]
 
 local Lisp = {
   fns = {} ,  reader = {} ,  envs = {}
 }
 Lisp.env = {}
-Lisp.Notice = Notice
+Lisp.Notice = Notice; Lisp.Banner = Banner
 
 local helper = {}
 
@@ -113,11 +129,9 @@ end
 
 local Env = {class="lispEnv"} -- variable holder
 
-function Env:new(vars, vals) -- create a new scope
--- takes a lua list of variables and another of values
-  newObj = helper.Zip(vars or {}, vals) -- zips vars and vals together
-   -- so {'v1','var2','3rd'}{'a',2,'c'}=>{v1='a',var2=2,['3rd']='c'}
-  newObj._Global = newObj._Global or false
+function Env:new(newObj) -- create a new scope
+-- takes a table of vars and vals
+  newObj._ns = newObj._ns or false
   table.insert(Lisp.envs, newObj) -- push environment
   Lisp.env = newObj -- Lisp.env points to the current environment
   self.__index = self
@@ -138,22 +152,18 @@ function helper.Zip(obj1, obj2)
 end
 
 function Env:set(name, val) -- set lisp variable name to val
-  if name == "NIL" or name == "T" then
-    error([[
+  assert(name ~= "NIL" and name ~= "T", [[
 lisp.lua: variable setter: trying to set ]] .. name)
-  end
-  local islocal = false
-  --- searching for which scope name is in
   local indx = #Lisp.envs -- starting at the top of the stack of envs
-  while (not Lisp.envs[indx]._global)
+  while (not Lisp.envs[indx]._ns)
         and indx > 1 do -- until we give up when we've searched everywhere
-    for key in pairs(Lisp.envs[indx]) do
-      if key == name then
-        islocal = true
-        break
-      end
+    local mt = getmetatable(Lisp.envs[indx])
+    setmetatable(Lisp.envs[indx], nil)
+    if Lisp.envs[indx][name] ~= nil then
+      setmetatable(Lisp.envs[indx][name], mt)
+      break
     end
-    if islocal then break end
+    setmetatable(Lisp.envs[indx][name], mt)
     indx = indx - 1 -- check next environment
   end
   Lisp.envs[indx][name] = val
@@ -173,7 +183,7 @@ end
 
 function Lisp.fns.let(args)
   if type(args.car) ~= "table" then
-    Lisp.env:new({args.car}, {Lisp.eval(args.cdr.car)})
+    Lisp.env:new{[args.car]=Lisp.eval(args.cdr.car)}
     local rslt = Lisp.fns.progn(args.cdr.cdr)
     Lisp.env:del()
     return rslt
@@ -182,12 +192,12 @@ function Lisp.fns.let(args)
   local vals = {}
   local list = args.car
   while list do
-    table.insert(vars, args.car)
+    table.insert(vars, list.car)
     list = list.cdr
-    table.insert(vals, Lisp.eval(args.car))
+    table.insert(vals, Lisp.eval(list.car))
     list = list.cdr
   end
-  Lisp.env:new(vars, vals)
+  Lisp.env:new(helper.zip(vars, vals))
   local rslt = Lisp.fns.progn(args.cdr.cdr)
   Lisp.env:del()
   return rslt
@@ -214,7 +224,32 @@ Lisp.fns["atom?"] = Lisp.fns.atomp
 
 function Lisp.fns.eq(args) -- two arguments are equal?
   local a = Lisp.eval(args.car)
-  return a == Lisp.eval(args.cdr.car) and (a or "T") or nil
+  return a == Lisp.eval(args.cdr.car) and "T" or nil
+end
+
+function Lisp.fns.null(args)
+  return not Lisp.eval(args.car)
+end
+
+Lisp.fns["nullp"] = Lisp.fns.null
+Lisp.fns["null?"] = Lisp.fns.null
+Lisp.fns["not"]   = Lisp.fns.null
+
+function Lisp.fns.namespace(args)
+  if args.car == "into" then
+    Lisp.env:new({ _ns = args.cdr.car })
+    Lisp.env[args.cdr.car] = Lisp.env
+    local rslt = Lisp.fns.progn(args.cdr.cdr)
+    Lisp.env:set(args.cdr.car, Lisp.env:del())
+    return rslt
+  elseif args.car == "load" then
+    Lisp.env:new(Lisp.eval(args.cdr.car))
+    local rslt = Lisp.fns.progn(args.cdr.cdr)
+    Lisp.env:del()
+    return rslt
+  else
+    error("lisp.lua: unknown namespace manipulation command: "..args.car)
+  end
 end
 
  -----------------------------
@@ -293,6 +328,17 @@ function Lisp.fns.list(args)
   return Cons:new( Lisp.eval(args.car) ,  Lisp.fns.list(args.cdr) )
 end
 
+function Lisp.fns.qlist(args) -- quasiquoted list
+  if type(args.car) == "table" then
+    args.car = Lisp.fns.qlist(args)
+  elseif args.car == "," and args.cdr.car ~= "," then
+    args = args.cdr
+    args.car = Lisp.eval(args.car)
+  end
+  args.cdr = Lisp.fns.qlist(args.cdr)
+  return args
+end
+
 function Lisp.fns.progn(args) -- like list but only returns last value
   local cons = args
   while cons.cdr do
@@ -306,6 +352,12 @@ function Lisp.fns.elt(args)
   return Lisp.eval(args.cdr.car):elt(Lisp.eval(args.car))
 end
 
+function Lisp.fns.attr(args)
+  local val = Lisp.eval(args.cdr.cdr.car)
+  Lisp.eval(args,car)[Lisp.eval(args.cdr.car)] = val
+  return val
+end
+
  -----------------------------
  -- some wrappers for important fns
 
@@ -313,7 +365,12 @@ function Lisp.fns.eval(args)
   return Lisp.eval(Lisp.eval(args.car))
 end
 
+function Lisp.fns.load(args)
+  return Lisp.load(Lisp.eval(args.car))
+end
+
 function Lisp.fns.read(args)
+  if not args then return Lisp.read() end
   return Lisp.read( Lisp.eval(args.car) )
 end
 
@@ -482,7 +539,8 @@ function Lisp.eval(item)
 end
 
 function Lisp.begin ()
-  Env:new({T="T", _global="T", ["*features*"]="practically none", _G=_G, mod={}})
+  Env:new({T="T", _ns="T",
+    ["*features*"]="practically none", _G=_G, module={}})
   for fn, val in pairs(Lisp.fns) do
     Lisp.env[fn] = val
   end
@@ -493,11 +551,9 @@ function Cons:call()
     return self
   end
   local Car = Lisp.eval(self.car)
-  if not Car then
-    error(  [[
+  assert(Car, [[
 lisp.lua: cons-pair caller: tried to call a nil value: ]]
-      .. Lisp.toString(self.car)  )
-  end
+    .. Lisp.toString(self.car)  )
   if type(Car) == "function" then
     return Car(self.cdr)
   elseif Car.class ~= "lispCons" then
@@ -509,16 +565,25 @@ lisp.lua: cons-pair caller: tried to call a nil value: ]]
     end
     return val
   elseif Car.car == "@" then
-    Lisp.env:new( {"args"}, {Lisp.fns.list(self.cdr)} )
+    Lisp.env:new( {args=Lisp.fns.list(self.cdr)} )
   elseif type(Car.car) == "string" then
-    Lisp.env:new( {Car.car}, {self.cdr} )
+    Lisp.env:new( {[Car.car]=self.cdr} )
   else
-    Lisp.env:new(Car.car:toList(),
-      Lisp.fns.list(self.cdr):toList() )
+    Lisp.env:new(helper.zip(Car.car:toList(),
+      Lisp.fns.list(self.cdr):toList()))
   end
   local rslt = Lisp.fns.progn(Car.cdr)
   Lisp.env:del()
   return rslt
+end
+
+function Lisp.load(file)
+  local inp, rslt
+  while true do
+    inp = Lisp.read(nil, file)
+    if not inp then return rslt end
+    rslt = Lisp.eval(inp)
+  end
 end
 
 -----------------------------------------------------------
@@ -527,22 +592,30 @@ end
 
 Lisp.reader = require("read")
 
-function Lisp.read(str)
-  if not str then -- read from stdin
+function Lisp.read(str, file, flag)
+-- flag specifies whether this should return what is read in
+-- or a table with  the input as the first element, which is
+-- important  for distinguishing  between when this  returns
+-- nil because it read nil or because it reached the EOF.
+  if not str then -- read from file
     str = ""
+    file = file or io.stdin
+    if type(file) == "string" then file = io.open(file) end
     repeat
-      local inp = io.read()
+      local inp = file:read()
       if not inp then return nil end
+      if inp:sub(1,1) == "#" then inp = "" end
       str = str .. inp
-    until Lisp.reader.parBalanced(str)
+    until Lisp.reader.parBalanced(str) and str ~= ""
   end
-  return Cons.fromList(  Lisp.reader.toList( str )  )
+  return flag and {Cons.fromList(Lisp.reader.toList(str))} or
+    Cons.fromList(  Lisp.reader.toList(str)  )
 end
 
 function Lisp.toString(from, notp)
   if type(from) == 'table' then
     if type(from.cdr) ~= 'table' and from.cdr then
-      from.cdr = Cons:new('.', Cons:new(from.cdr) )
+      from = Cons:new(from.car, Cons:new('.', Cons:new(from.cdr)) )
     end
     return (notp and ' ' or '(') ..
       Lisp.toString(from.car) ..
