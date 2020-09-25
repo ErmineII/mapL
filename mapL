@@ -1,0 +1,65 @@
+#!/usr/bin/env lua-any
+-- Lua-Versions: 5.3 5.2 5.1
+
+lisp = require('lisp')
+
+lisp.begin()
+
+function process(ioargs, processed) -- process command-line options
+  local indx = 0
+  local processed = processed or {}
+  while indx < #ioargs do
+    local curr = ioargs[indx]
+    if curr:find('^[-][-]') then --long options like --word=yes
+      local option = curr:match('^..([^=]*)=?') --option name like word
+      if processed[option] ~= nil then -- if this has an argument
+        processed[option] =
+          curr:match('^..[^=]*=(.*)$') or true --processed.word = 'yes'
+        if processed[option] == true then -- or like '--word yes'
+          indx = indx + 1
+          processed[option] = ioargs[indx]
+        end
+      else -- or just record that that option was found
+        processed[option] = true
+      end
+    elseif curr:find('^[-].+') then --short option
+      while curr:find('^..') do
+        local opt, rest = curr:match('^[-](.)(.*)$')
+        if processed[opt] ~= nil then --option requires argument
+          if rest ~= "" then
+            processed[opt] = rest
+          else
+            indx = indx + 1
+            processed[opt] = ioargs[indx]
+          end
+          break
+        end -- otherwise, just record the option
+        processed[opt] = true
+        curr = '-' .. rest
+      end
+    else -- option not starting with -
+      table.insert(processed, curr)
+    end 
+    indx = indx + 1
+  end
+  return processed
+end
+
+opts = process(arg, {prompt=false, p=false,})
+
+for key, file in pairs(opts) do
+  print(key, file)--lisp.load(file)
+end
+if not(opts.q or opts.quiet) then
+  print(lisp.Banner)
+end
+
+prompt = opts.p or opts.prompt or "λ> "
+repeat
+  io.write(prompt)
+  local expression = lisp.read(nil,nil,true)
+  if expression == nil then return nil end
+  prev = lisp.eval(expression[1])
+  lisp.env['@'] = prev
+  if prev then print(lisp.toString(prev)) end
+until (expression == nil)
