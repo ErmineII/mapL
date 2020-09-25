@@ -14,18 +14,20 @@ function lspEvl(str)
   return lisp.eval(lisp.read(str))
 end
 
+lisp.begin()
+
 lspEvl[[
 ```
 ```lisp
 (progn
-  (setq x 1 y 2)
-  (print (+ x y)) => 3
-  (print (space '(this is the closest to strings so far)))
-  (de myElt (lst indx)
-     (if (eq indx 0)
-       (car lst)
-       (myElt (cdr lst) (- inx 1)) ) )
-  (myElt (3 5 6) 2) => 6  )
+   (setq x 1 y 2)
+   (print (+ x y)) => 3
+   (print (space '(this is the closest to strings so far)))
+   (de myElt (lst indx)
+      (if (eq indx 0)
+         (car lst)
+         (myElt (cdr lst) (- indx 1)) ) )
+   (myElt (3 5 6) 2) => 6  )
 ```
 
 ```lua
@@ -44,13 +46,13 @@ lspEvl[[
 
 ```lisp
 (progn
-  (require 'exp)
-  (setq x 14 y 9)
-  (print (# x + y*2)) => 22
-  (# y = 3)
-  (print y) => 3
-  (print (# `(read) + 12)) ==
-  (print (ev (read) '+12)) )
+   (require 'exp)
+   (setq x 14 y 9)
+   (print (# x + y*2)) => 22
+      (# y =    3)   
+   (print y   ) =   > 3
+   (print (# `(read) + 12)) ==
+   (print (ev (read) '+12)) )
 ```
 - interfaces with lisp to set and read
-  variabels
+  variables
