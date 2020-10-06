@@ -20,6 +20,7 @@ lspEvl[[
 ```
 ```lisp
 (progn
+<<<<<<< HEAD
    (setq x 1 y 2)
    (print (+ x y)) => 3
    (print (space '(this is the closest to strings so far)))
@@ -37,12 +38,12 @@ lspEvl[[
 
 ---
 
-## the expression library
+## The `exp`ression Library
 
 - includes the functions ev and evq
-- '#' is the same as 'evq', which will
+- `#` is the same as `evq`, which will
    evaluate an infix expression
-- 'ev' will evaluate its arguments first
+- `ev` will evaluate its arguments first
 
 ```lisp
 (progn
@@ -56,3 +57,14 @@ lspEvl[[
 ```
 - interfaces with lisp to set and read
   variables
+
+---
+
+## Lua interaction
+
+- use `lua` function to
+   - call a lua function:
+    `(lua funCall (_G 'string 'match) (read) (space '^%g*'(.*)))`
+- turn a lua function into a function lisp code can call:
+   - `(:=  lua-require (toLisp (_G 'require)))   (:= pkg (lua-require 'packagename))`
+
