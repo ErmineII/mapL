@@ -6,11 +6,19 @@ lisp = require('lisp')
 lisp.begin()
 
 function process(ioargs, processed) -- process command-line options
-  local indx = 0
+  local indx = 1
   local processed = processed or {}
-  while indx < #ioargs do
+  while indx <= #ioargs do
     local curr = ioargs[indx]
-    if curr:find('^[-][-]') then --long options like --word=yes
+    if curr == "--" then
+      indx = indx + 1
+      while ioargs[indx] do
+        table.insert(processed, ioargs[indx])
+        indx = indx + 1
+      end
+      return processed
+    end
+    if curr:sub(1,2) == "--" then --long options like --word=yes
       local option = curr:match('^..([^=]*)=?') --option name like word
       if processed[option] ~= nil then -- if this has an argument
         processed[option] =
@@ -22,12 +30,13 @@ function process(ioargs, processed) -- process command-line options
       else -- or just record that that option was found
         processed[option] = true
       end
-    elseif curr:find('^[-].+') then --short option
-      while curr:find('^..') do
-        local opt, rest = curr:match('^[-](.)(.*)$')
+    elseif curr:sub(1,1) == "-" then --short option
+      while curr ~= "" do
+        curr = curr:sub(2)
+        local opt = curr:sub(1,1)
         if processed[opt] ~= nil then --option requires argument
-          if rest ~= "" then
-            processed[opt] = rest
+          if curr:len() > 1 then
+            processed[opt] = curr:sub(2)
           else
             indx = indx + 1
             processed[opt] = ioargs[indx]
@@ -35,7 +44,6 @@ function process(ioargs, processed) -- process command-line options
           break
         end -- otherwise, just record the option
         processed[opt] = true
-        curr = '-' .. rest
       end
     else -- option not starting with -
       table.insert(processed, curr)
@@ -46,10 +54,12 @@ function process(ioargs, processed) -- process command-line options
 end
 
 opts = process(arg, {prompt=false, p=false,})
-
-for key, file in pairs(opts) do
-  print(key, file)--lisp.load(file)
+--[[
+for key, file in ipairs(opts) do
+  lisp.load(file)
+  --print(file)
 end
+--]]
 if not(opts.q or opts.quiet) then
   print(lisp.Banner)
 end

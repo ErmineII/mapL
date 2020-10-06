@@ -123,6 +123,18 @@ function Cons:len() -- the length of a cons-list
   return length
 end
 
+--[[
+function Cons:bind(env)
+  local args = type(self.car) == "table" and
+    self.car:toList() or self.car
+  local body = self.cdr
+  repeat
+    while body do
+      if env[body.car] ~= nil then
+        body.car = env[body.car]
+      end
+--]]
+
  -----------------------------
  --- Environments
  -----------------------------
@@ -142,7 +154,7 @@ function Env:new(newObj) -- create a new scope
   return setmetatable(newObj, self)
 end
 
-function helper.Zip(obj1, obj2)
+function helper.zip(obj1, obj2)
   if not obj2 then return obj1 end
   ret = {}
   for key, val in pairs(obj1) do
@@ -160,10 +172,10 @@ lisp.lua: variable setter: trying to set ]] .. name)
     local mt = getmetatable(Lisp.envs[indx])
     setmetatable(Lisp.envs[indx], nil)
     if Lisp.envs[indx][name] ~= nil then
-      setmetatable(Lisp.envs[indx][name], mt)
+      setmetatable(Lisp.envs[indx], mt)
       break
     end
-    setmetatable(Lisp.envs[indx][name], mt)
+    setmetatable(Lisp.envs[indx], mt)
     indx = indx - 1 -- check next environment
   end
   Lisp.envs[indx][name] = val
@@ -198,7 +210,7 @@ function Lisp.fns.let(args)
     list = list.cdr
   end
   Lisp.env:new(helper.zip(vars, vals))
-  local rslt = Lisp.fns.progn(args.cdr.cdr)
+  local rslt = Lisp.fns.progn(args.cdr)
   Lisp.env:del()
   return rslt
 end
@@ -307,6 +319,14 @@ end
 
 function Lisp.fns.quote(args)
   return args
+end
+
+function Lisp.fns.closure(args)
+  return Cons:new(args.car, Cons:new(
+    Cons:new("namespace", Cons:new("load",
+      Cons:new(Cons:new("quote", Lisp.env), args.cdr)))))
+  -- (closure (args) ~body~) =>
+  -- ((args) (namespace load (quote . ~ns~) ~body))
 end
 
 function Lisp.fns.car(args)
