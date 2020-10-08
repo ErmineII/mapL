@@ -20,7 +20,6 @@ lspEvl[[
 ```
 ```lisp
 (progn
-<<<<<<< HEAD
    (setq x 1 y 2)
    (print (+ x y)) => 3
    (print (space '(this is the closest to strings so far)))
