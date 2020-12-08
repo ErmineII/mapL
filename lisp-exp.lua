@@ -1,4 +1,4 @@
-exp  =   require('exp')
+exp  =   require('exp/exp')
 local
   lisp = require('lisp')
 
